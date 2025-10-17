@@ -1,0 +1,80 @@
+###  REGISTRO DE USUARIO
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Mohamed Kone",
+  "password": "Moha123"
+}
+
+###
+
+### LOGIN
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "nombre": "Mohamed Kone",
+  "password": "Moha123"
+}
+
+###
+
+###  OBTENER PRODUCTOS
+GET http://localhost:3000/productos
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+Content-Type: application/json
+
+###
+
+###  AÑADIR PRODUCTO AL CARRITO
+# Reemplaza PRODUCTO_ID por el _id de un producto obtenido arriba
+POST http://localhost:3000/carrito/68e3acc19f8d050f83360481
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+
+###
+
+###  VER CARRITO
+GET http://localhost:3000/carrito
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+
+###
+
+### ACTUALIZAR CANTIDAD DE PRODUCTO EN EL CARRITO
+# Reemplaza CARRITO_ITEM_ID por el _id del item en el carrito (obtenido en el GET anterior)
+PUT http://localhost:3000/carrito/cantidad/68eb838192b78c7110d91c5e
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+
+{
+  "cantidad": 5
+}
+
+###
+
+### 
+### EDITAR PRODUCTO DEL CARRITO
+PUT http://localhost:3000/carrito/editar/68eb838192b78c7110d91c5e
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+
+{
+  "nuevoProductoId": "68e3acc19f8d050f8336047e"
+}
+
+
+###
+
+###  ELIMINAR PRODUCTO DEL CARRITO
+DELETE http://localhost:3000/carrito/68e3acc19f8d050f8336047e
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+
+###
+
+###  BUSCAR PRODUCTOS POR NOMBRE 
+GET http://localhost:3000/productos/buscar?nombre=a
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGUzYWIzZGQ4MzQ2YmFmNDNhYWRhOTIiLCJub21icmUiOiJNb2hhbWVkIEtvbmUiLCJpYXQiOjE3NjA0MzYyMDEsImV4cCI6MTc2MDQ0MzQwMX0.8Z3uGqzYjBER9zq4D8MnPAuDrMA9rR0SImwThjO6gQY
+Content-Type: application/json
+
+###
+ 
