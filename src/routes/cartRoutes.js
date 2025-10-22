@@ -89,6 +89,15 @@ router.put("/editar/:id", auth, (peticion, respuesta) => {
   });
 });
 
+// Backend - pagar todo y borrar carrito
+router.put("/pagar-todo", auth, (req, res) => {
+  usarDB(async ({ carritoCol }) => {
+    await carritoCol.deleteMany({ userId: req.user._id, pagado: false });
+    res.json({ mensaje: "🎉 Muchas gracias por tu compra, hasta luego 🛍️" });
+  });
+});
+
+
 // Actualizar cantidad
 router.put("/cantidad/:id", auth, (peticion, respuesta) => {
   const { cantidad } = peticion.body;
