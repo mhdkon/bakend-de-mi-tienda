@@ -31,6 +31,7 @@ router.post("/:id", auth, (peticion, respuesta) => {
         imagen: producto.imagen,
         cantidad: 1,
         pagado: false,
+        talla: "38" // Talla por defecto al añadir
       });
     }
 
@@ -66,26 +67,60 @@ router.put("/pagar/:id", auth, (peticion, respuesta) => {
   });
 });
 
-// Editar
+// Editar TALLA - CÓDIGO CORREGIDO
 router.put("/editar/:id", auth, (peticion, respuesta) => {
-  usarDB(async ({ productosCol, carritoCol }) => {
-    const { nuevoProductoId } = peticion.body;
-    const producto = await productosCol.findOne({ _id: new ObjectId(nuevoProductoId) });
-    if (!producto) return respuesta.status(404).json({ error: "Producto nuevo no encontrado" });
+  console.log("🔍 Recibiendo petición para editar talla:");
+  console.log("ID recibido:", peticion.params.id);
+  console.log("User ID:", peticion.user._id);
+  console.log("Talla recibida:", peticion.body.talla);
 
-    await carritoCol.updateOne(
-      { _id: new ObjectId(peticion.params.id), userId: peticion.user._id },
-      {
-        $set: {
-          productoId: producto._id,
-          nombre: producto.nombre,
-          precio: producto.precio,
-          imagen: producto.imagen,
-          pagado: false,
-        },
+  usarDB(async ({ carritoCol }) => {
+    const { talla } = peticion.body;
+    
+    if (!talla) {
+      return respuesta.status(400).json({ error: "La talla es requerida" });
+    }
+
+    try {
+      // Verificar si el ID es válido
+      let objectId;
+      try {
+        objectId = new ObjectId(peticion.params.id);
+      } catch (error) {
+        return respuesta.status(400).json({ error: "ID inválido" });
       }
-    );
-    respuesta.json({ mensaje: "Producto del carrito actualizado" });
+
+      // Buscar el item en el carrito
+      const item = await carritoCol.findOne({ 
+        _id: objectId, 
+        userId: peticion.user._id 
+      });
+
+      console.log("📦 Item encontrado:", item);
+
+      if (!item) {
+        return respuesta.status(404).json({ 
+          error: "Producto no encontrado en el carrito",
+          idBuscado: peticion.params.id
+        });
+      }
+
+      const resultado = await carritoCol.updateOne(
+        { _id: objectId, userId: peticion.user._id },
+        { $set: { talla } }
+      );
+
+      console.log("✅ Resultado de la actualización:", resultado);
+
+      if (resultado.matchedCount === 0) {
+        return respuesta.status(404).json({ error: "No se pudo actualizar la talla" });
+      }
+      
+      respuesta.json({ mensaje: "Talla actualizada correctamente" });
+    } catch (error) {
+      console.error("❌ Error en editar talla:", error);
+      respuesta.status(500).json({ error: "Error interno del servidor" });
+    }
   });
 });
 
@@ -96,7 +131,6 @@ router.put("/pagar-todo", auth, (req, res) => {
     res.json({ mensaje: "🎉 Muchas gracias por tu compra, hasta luego 🛍️" });
   });
 });
-
 
 // Actualizar cantidad
 router.put("/cantidad/:id", auth, (peticion, respuesta) => {
