@@ -17,10 +17,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Función para crear tablas automáticamente
+// Función para crear tablas automáticamente
 async function createTables() {
+  let client;
   try {
-    const client = await pool.connect();
-    console.log('🔄 Creando tablas en la base de datos...');
+    client = await pool.connect();
+    console.log('🔄 Conectado a la base de datos, creando tablas...');
 
     // Crear tabla clientes
     await client.query(`
@@ -35,6 +37,7 @@ async function createTables() {
         es_activo BOOLEAN DEFAULT TRUE
       )
     `);
+    console.log('✅ Tabla clientes creada/verificada');
 
     // Crear tabla categorias
     await client.query(`
@@ -45,6 +48,7 @@ async function createTables() {
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    console.log('✅ Tabla categorias creada/verificada');
 
     // Crear tabla productos
     await client.query(`
@@ -61,6 +65,7 @@ async function createTables() {
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    console.log('✅ Tabla productos creada/verificada');
 
     // Crear tabla pedidos
     await client.query(`
@@ -73,6 +78,7 @@ async function createTables() {
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    console.log('✅ Tabla pedidos creada/verificada');
 
     // Crear tabla pedidos_productos
     await client.query(`
@@ -85,6 +91,7 @@ async function createTables() {
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    console.log('✅ Tabla pedidos_productos creada/verificada');
 
     // Crear tabla carrito
     await client.query(`
@@ -97,30 +104,45 @@ async function createTables() {
         UNIQUE(cliente_id, producto_id)
       )
     `);
+    console.log('✅ Tabla carrito creada/verificada');
 
-    // Insertar categorías básicas si no existen
+    // Insertar categorías básicas - CORREGIDO
     await client.query(`
-      INSERT INTO categorias (nombre, descripcion) VALUES
-      ('Zapatos Deportivos', 'Zapatos para deporte'),
-      ('Zapatos Formales', 'Zapatos elegantes'),
-      ('Sandalias', 'Calzado abierto'),
-      ('Botas', 'Calzado de protección')
-      ON CONFLICT (nombre) DO NOTHING
+      INSERT INTO categorias (id, nombre, descripcion) VALUES
+      (1, 'Zapatos Deportivos', 'Zapatos para deporte'),
+      (2, 'Zapatos Formales', 'Zapatos elegantes'),
+      (3, 'Sandalias', 'Calzado abierto'),
+      (4, 'Botas', 'Calzado de protección')
+      ON CONFLICT (id) DO UPDATE SET
+        nombre = EXCLUDED.nombre,
+        descripcion = EXCLUDED.descripcion
     `);
+    console.log('✅ Categorías insertadas/actualizadas');
 
-    // Insertar productos de ejemplo si no existen
+    // Insertar productos de ejemplo - CORREGIDO
     await client.query(`
-      INSERT INTO productos (nombre, precio, stock, categoria_id, imagen, marca) VALUES
-      ('AirFlex Runner', 30.00, 41, 1, '/img/zapato5.jpg', 'Running'),
-      ('Urban Step', 5.00, 28, 1, '/img/zapato6.jpg', 'Casual'),
-      ('Street Move', 25.00, 32, 1, '/img/zapato2.jpg', 'Urbana')
-      ON CONFLICT (nombre) DO NOTHING
+      INSERT INTO productos (id, nombre, precio, stock, categoria_id, imagen, marca) VALUES
+      (1, 'AirFlex Runner', 30.00, 41, 1, '/img/zapato5.jpg', 'Running'),
+      (2, 'Urban Step', 5.00, 28, 1, '/img/zapato6.jpg', 'Casual'),
+      (3, 'Street Move', 25.00, 32, 1, '/img/zapato2.jpg', 'Urbana')
+      ON CONFLICT (id) DO UPDATE SET
+        nombre = EXCLUDED.nombre,
+        precio = EXCLUDED.precio,
+        stock = EXCLUDED.stock,
+        categoria_id = EXCLUDED.categoria_id,
+        imagen = EXCLUDED.imagen,
+        marca = EXCLUDED.marca
     `);
+    console.log('✅ Productos insertados/actualizados');
 
     console.log('✅ Todas las tablas creadas exitosamente');
     client.release();
   } catch (error) {
-    console.error('❌ Error creando tablas:', error);
+    console.error('❌ Error creando tablas:', error.message);
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 }
 
