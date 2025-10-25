@@ -1,20 +1,21 @@
 import express from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";  // ✅ Cambia a bcryptjs
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import { pool } from "../../db.js";
+import { pool } from "../config/dbConnection";  // ✅ Corrige la ruta
 
 dotenv.config();
 const router = express.Router();
 const SECRET = process.env.SECRET || "mi_secreto_super_seguro";
 
 // Registro
-router.post("/register", async (peticion, respuesta) => {  // ✅ Agregado async
+router.post("/register", async (peticion, respuesta) => {
+  let client;
   try {
-    let { nombre, password, email, telefono, direccion } = peticion.body;  // ✅ Agregados campos nuevos
+    let { nombre, password, email, telefono, direccion } = peticion.body;
 
     // Validaciones básicas
-    if (!nombre || !password || !email)  // ✅ Email ahora obligatorio
+    if (!nombre || !password || !email)
       return respuesta.status(400).json({ error: "Nombre, email y contraseña son obligatorios" });
 
     nombre = nombre.trim();
@@ -30,8 +31,11 @@ router.post("/register", async (peticion, respuesta) => {  // ✅ Agregado async
         .status(400)
         .json({ error: "La contraseña debe tener mínimo 6 caracteres y un número" });
 
-    // ✅ Verificar si el usuario ya existe (por EMAIL ahora)
-    const usuarioExistente = await pool.query(
+    // Conectar a la base de datos
+    client = await pool.connect();
+
+    // Verificar si el usuario ya existe
+    const usuarioExistente = await client.query(
       'SELECT * FROM clientes WHERE email = $1', 
       [email]
     );
@@ -39,16 +43,11 @@ router.post("/register", async (peticion, respuesta) => {  // ✅ Agregado async
     const hash = await bcrypt.hash(password, 10);
 
     if (usuarioExistente.rows.length > 0) {
-      // ✅ Actualizar contraseña si el usuario existe
-      await pool.query(
-        'UPDATE clientes SET password = $1 WHERE email = $2',
-        [hash, email]
-      );
-      return respuesta.json({ mensaje: "Usuario ya existía, contraseña actualizada" });
+      return respuesta.status(400).json({ error: "El usuario ya existe" });
     }
 
-    // ✅ Insertar nuevo usuario en PostgreSQL
-    const nuevoUsuario = await pool.query(
+    // Insertar nuevo usuario
+    const nuevoUsuario = await client.query(
       `INSERT INTO clientes (nombre, email, telefono, direccion, password) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING id, nombre, email, telefono, direccion`,
@@ -57,22 +56,33 @@ router.post("/register", async (peticion, respuesta) => {  // ✅ Agregado async
 
     respuesta.json({ 
       mensaje: "Usuario registrado correctamente",
-      data: nuevoUsuario.rows[0]  // ✅ Devolver datos del usuario creado
+      data: nuevoUsuario.rows[0]
     });
 
   } catch (error) {
     console.error("❌ Error en registro:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    respuesta.status(500).json({ 
+      error: "Error interno del servidor",
+      detalle: error.message 
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
 // Login
-router.post("/login", async (peticion, respuesta) => {  // ✅ Agregado async
+router.post("/login", async (peticion, respuesta) => {
+  let client;
   try {
-    const { email, password } = peticion.body;  // ✅ Cambiado a email
+    const { email, password } = peticion.body;
 
-    // ✅ Buscar usuario por EMAIL en PostgreSQL
-    const usuario = await pool.query(
+    // Conectar a la base de datos
+    client = await pool.connect();
+
+    // Buscar usuario por EMAIL
+    const usuario = await client.query(
       'SELECT * FROM clientes WHERE email = $1',
       [email]
     );
@@ -86,10 +96,10 @@ router.post("/login", async (peticion, respuesta) => {  // ✅ Agregado async
     if (!correcto)
       return respuesta.status(400).json({ error: "Email o contraseña incorrectos" });
 
-    // ✅ Generar token con ID numérico de PostgreSQL
+    // Generar token
     const token = jwt.sign(
       { 
-        id: usuarioData.id,  // ✅ Cambiado _id por id
+        id: usuarioData.id,
         nombre: usuarioData.nombre,
         email: usuarioData.email 
       }, 
@@ -100,7 +110,7 @@ router.post("/login", async (peticion, respuesta) => {  // ✅ Agregado async
     respuesta.json({ 
       token, 
       mensaje: "Bienvenido, " + usuarioData.nombre,
-      data: {  // ✅ Devolver datos del usuario (sin password)
+      data: {
         id: usuarioData.id,
         nombre: usuarioData.nombre,
         email: usuarioData.email,
@@ -111,7 +121,14 @@ router.post("/login", async (peticion, respuesta) => {  // ✅ Agregado async
 
   } catch (error) {
     console.error("❌ Error en login:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    respuesta.status(500).json({ 
+      error: "Error interno del servidor",
+      detalle: error.message 
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
