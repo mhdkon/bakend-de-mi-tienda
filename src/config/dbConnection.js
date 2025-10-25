@@ -15,7 +15,9 @@ export const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  ssl: true  // ✅ IMPORTANTE: Render requiere SSL
+  ssl: {
+    rejectUnauthorized: false  // ✅ ESTA ES LA CONFIGURACIÓN CORRECTA
+  }
 });
 
 // ======== VERIFICAR CONEXIÓN ========
@@ -23,6 +25,11 @@ export const verificarConexion = async () => {
   try {
     const client = await pool.connect();
     console.log("✅ Conexión a PostgreSQL exitosa");
+    
+    // Probar consulta simple
+    const result = await client.query('SELECT NOW()');
+    console.log('✅ Hora de la base de datos:', result.rows[0].now);
+    
     client.release();
     return true;
   } catch (error) {
@@ -30,6 +37,9 @@ export const verificarConexion = async () => {
     return false;
   }
 };
+
+// Verificar conexión al importar
+verificarConexion();
 
 export default {
   pool,
