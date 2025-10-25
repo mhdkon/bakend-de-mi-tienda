@@ -6,6 +6,7 @@ dotenv.config();
 const { Pool } = pkg;
 
 // ======== CONEXIÓN A POSTGRESQL ========
+// ======== CONEXIÓN A POSTGRESQL ========
 export const pool = new Pool({
   user: process.env.DB_USER || 'postgres1',
   host: process.env.DB_HOST || 'dpg-d3ub0e0gjchc73a73c0g-a',
@@ -15,7 +16,9 @@ export const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  ssl: true
+  ssl: {
+    rejectUnauthorized: false  // ✅ ESTA LÍNEA ARREGLA EL PROBLEMA
+  }
 });
 
 // ======== VERIFICAR CONEXIÓN ========
