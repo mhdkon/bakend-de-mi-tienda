@@ -7,14 +7,15 @@ const { Pool } = pkg;
 
 // ======== CONEXIÓN A POSTGRESQL ========
 export const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'tienda_db',
-  password: process.env.DB_PASS || 'admin',
+  user: process.env.DB_USER || 'postgres1',
+  host: process.env.DB_HOST || 'dpg-cm9upj6d3nmc73ep9iug-a.oregon-postgres.render.com',
+  database: process.env.DB_NAME || 'tienda_db_b71t',
+  password: process.env.DB_PASS || 'aLJFQLP0rQAz2khw9p6mejVcy138a6J5',
   port: process.env.DB_PORT || 5432,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: true  // ✅ IMPORTANTE: Render requiere SSL
 });
 
 // ======== VERIFICAR CONEXIÓN ========
