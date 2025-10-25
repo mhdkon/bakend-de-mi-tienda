@@ -1,24 +1,36 @@
-import { MongoClient } from "mongodb";
+// ======== IMPORTACIONES ========
+import pkg from "pg";
 import dotenv from "dotenv";
+
 dotenv.config();
+const { Pool } = pkg;
 
-export async function usarDB(callback) {
-  let cliente;
+// ======== CONEXIÓN A POSTGRESQL ========
+export const pool = new Pool({
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'tienda_db',
+  password: process.env.DB_PASS || 'admin',
+  port: process.env.DB_PORT || 5432,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+// ======== VERIFICAR CONEXIÓN ========
+export const verificarConexion = async () => {
   try {
-    // console.log(" Conectando a MongoDB..."); // <- comentado
-    cliente = await MongoClient.connect(process.env.DB_URI);
-    const db = cliente.db("tiendaDB");
-
-    const usuariosCol = db.collection("usuarios");
-    const productosCol = db.collection("productos");
-    const carritoCol = db.collection("carrito");
-
-    await callback({ usuariosCol, productosCol, carritoCol });
+    const client = await pool.connect();
+    console.log("✅ Conexión a PostgreSQL exitosa");
+    client.release();
+    return true;
   } catch (error) {
-    console.log(" Error DB:", error);
-  } finally {
-    if (cliente) {
-      await cliente.close();
-    }
+    console.error("❌ Error conectando a PostgreSQL:", error.message);
+    return false;
   }
-}
+};
+
+export default {
+  pool,
+  verificarConexion
+};
