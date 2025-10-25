@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./src/routes/authRoutes.js";
 import productsRoutes from "./src/routes/productsRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
-import { pool } from "./src/config/database.js";
+import { pool } from "./src/config/dbConnection.js";
 
 dotenv.config();
 const servidor = express();
