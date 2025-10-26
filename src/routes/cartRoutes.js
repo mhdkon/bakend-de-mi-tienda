@@ -1,10 +1,18 @@
 import express from "express";
 import { auth } from "../middlewares/authMiddleware.js";
+<<<<<<< HEAD
 import { pool } from "../../db.js";
+=======
+import { pool } from "../config/dbConnection.js";
+>>>>>>> 737d731 (cambios de rutas)
 
 const router = express.Router();
 
+<<<<<<< HEAD
 // Añadir producto al carrito (ACTUALIZADO CON TALLA)
+=======
+// Añadir producto al carrito (ACTUALIZADO PARA TALLAS)
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
 router.post("/:id", auth, async (peticion, respuesta) => {
   const client = await pool.connect();
   
@@ -13,9 +21,15 @@ router.post("/:id", auth, async (peticion, respuesta) => {
 
     const productoId = peticion.params.id;
     const userId = peticion.user.id;
+<<<<<<< HEAD
     const { cantidad = 1, talla = "38" } = peticion.body; // ✅ Añadido talla
 
     // Verificar que el producto existe y tiene stock
+=======
+    const { cantidad = 1, talla = "38" } = peticion.body;
+
+    // Verificar producto
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
     const producto = await client.query(
       'SELECT id, nombre, precio, stock, imagen FROM productos WHERE id = $1 AND es_activo = true',
       [productoId]
@@ -28,26 +42,39 @@ router.post("/:id", auth, async (peticion, respuesta) => {
 
     const productoData = producto.rows[0];
 
+<<<<<<< HEAD
     // Verificar stock disponible
+=======
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
     if (productoData.stock < cantidad) {
       await client.query('ROLLBACK');
       return respuesta.status(400).json({ error: "Stock insuficiente" });
     }
 
+<<<<<<< HEAD
     // Verificar si el producto ya está en el carrito CON LA MISMA TALLA
+=======
+    // Verificar si ya existe con misma talla
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
     const itemExistente = await client.query(
       'SELECT * FROM carrito WHERE cliente_id = $1 AND producto_id = $2 AND talla = $3',
       [userId, productoId, talla]
     );
 
     if (itemExistente.rows.length > 0) {
+<<<<<<< HEAD
       // Actualizar cantidad si ya existe con misma talla
+=======
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
       await client.query(
         'UPDATE carrito SET cantidad = cantidad + $1 WHERE cliente_id = $2 AND producto_id = $3 AND talla = $4',
         [cantidad, userId, productoId, talla]
       );
     } else {
+<<<<<<< HEAD
       // Insertar nuevo item en el carrito CON TALLA
+=======
+>>>>>>> cfff177ef71417ef6a160ff327a86410ce97e787
       await client.query(
         `INSERT INTO carrito (cliente_id, producto_id, cantidad, talla) 
          VALUES ($1, $2, $3, $4)`,
@@ -187,7 +214,7 @@ router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
     const userId = peticion.user.id;
     const { cantidad } = peticion.body;
 
-    if (cantidad < 1) {
+    if (!cantidad || cantidad < 1) {
       await client.query('ROLLBACK');
       return respuesta.status(400).json({ error: "La cantidad debe ser al menos 1" });
     }
