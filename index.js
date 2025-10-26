@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./src/routes/authRoutes.js";
 import productsRoutes from "./src/routes/productsRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
-import { initializeDatabase } from "./src/config/databaseInit.js";
+import { pool } from "./src/config/dbConnection.js";
 
 dotenv.config();
 const servidor = express();
@@ -16,13 +16,23 @@ const Puerto = process.env.Puerto || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Función simple para verificar conexión a BD
+async function verificarConexionBD() {
+  try {
+    await pool.query('SELECT NOW()');
+    console.log('✅ Conectado a la base de datos PostgreSQL');
+  } catch (error) {
+    console.error('❌ Error conectando a la base de datos:', error.message);
+  }
+}
+
 // Middlewares
 servidor.use(express.json());
 servidor.use(cors());
 servidor.use("/img", express.static(path.join(__dirname, "public/img")));
 
-// Inicializar base de datos al iniciar
-initializeDatabase();
+// Verificar conexión al iniciar
+verificarConexionBD();
 
 // Rutas
 servidor.use("/auth", authRoutes);
