@@ -4,65 +4,59 @@ import { pool } from "../../db.js";
 
 const router = express.Router();
 
-// Middleware de debug para ver las rutas que se llaman
-router.use((req, res, next) => {
-  console.log(`🛒 Carrito: ${req.method} ${req.originalUrl} - User: ${req.user?.id || 'No auth'}`);
-  next();
-});
-
-// Añadir producto al carrito (CON TALLA)
-router.post("/:id", auth, async (peticion, respuesta) => {
+// Añadir producto al carrito
+router.post("/:id", auth, async (req, res) => {
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
 
-    const productoId = peticion.params.id;
-    const userId = peticion.user.id;
-    const { cantidad = 1, talla = "38" } = peticion.body;
+    const productoId = req.params.id;
+    const userId = req.user.id;
+    const { cantidad = 1, talla = "38" } = req.body;
 
-    console.log(`➕ Añadiendo al carrito: producto=${productoId}, usuario=${userId}, cantidad=${cantidad}, talla=${talla}`);
+    console.log(`➕ Añadiendo al carrito - Usuario: ${userId}, Producto: ${productoId}, Talla: ${talla}`);
 
-    // Verificar que el producto existe y tiene stock
-    const producto = await client.query(
-      'SELECT id, nombre, precio, stock, imagen FROM productos WHERE id = $1 AND es_activo = true',
+    // Verificar producto
+    const productoResult = await client.query(
+      'SELECT id, nombre, precio, stock FROM productos WHERE id = $1 AND es_activo = true',
       [productoId]
     );
 
-    if (producto.rows.length === 0) {
+    if (productoResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      return respuesta.status(404).json({ error: "Producto no encontrado" });
+      return res.status(404).json({ error: "Producto no encontrado" });
     }
 
-    const productoData = producto.rows[0];
+    const producto = productoResult.rows[0];
 
-    // Verificar stock disponible
-    if (productoData.stock < cantidad) {
+    // Verificar stock
+    if (producto.stock < cantidad) {
       await client.query('ROLLBACK');
-      return respuesta.status(400).json({ error: "Stock insuficiente" });
+      return res.status(400).json({ error: "Stock insuficiente" });
     }
 
-    // Verificar si el producto ya está en el carrito CON LA MISMA TALLA
+    // Verificar si ya existe en el carrito
     const itemExistente = await client.query(
-      'SELECT * FROM carrito WHERE cliente_id = $1 AND producto_id = $2 AND talla = $3',
+      'SELECT id FROM carrito WHERE cliente_id = $1 AND producto_id = $2 AND talla = $3',
       [userId, productoId, talla]
     );
 
     if (itemExistente.rows.length > 0) {
-      // Actualizar cantidad si ya existe con misma talla
+      // Actualizar cantidad
       await client.query(
         'UPDATE carrito SET cantidad = cantidad + $1 WHERE cliente_id = $2 AND producto_id = $3 AND talla = $4',
         [cantidad, userId, productoId, talla]
       );
       console.log(`📈 Cantidad actualizada para producto ${productoId}`);
     } else {
-      // Insertar nuevo item en el carrito CON TALLA
+      // Insertar nuevo item
       await client.query(
         `INSERT INTO carrito (cliente_id, producto_id, cantidad, talla) 
          VALUES ($1, $2, $3, $4)`,
         [userId, productoId, cantidad, talla]
       );
-      console.log(`🆕 Nuevo item añadido al carrito: producto ${productoId}, talla ${talla}`);
+      console.log(`🆕 Nuevo item añadido: producto ${productoId}, talla ${talla}`);
     }
 
     await client.query('COMMIT');
@@ -77,46 +71,47 @@ router.post("/:id", auth, async (peticion, respuesta) => {
     );
 
     console.log(`✅ Carrito actualizado: ${carritoActualizado.rows.length} items`);
-    respuesta.json(carritoActualizado.rows);
+    res.json(carritoActualizado.rows);
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("❌ Error agregando al carrito:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     client.release();
   }
 });
 
-// Ver carrito
-router.get("/", auth, async (peticion, respuesta) => {
+// Obtener carrito del usuario
+router.get("/", auth, async (req, res) => {
   try {
-    const userId = peticion.user.id;
+    const userId = req.user.id;
 
     console.log(`👀 Obteniendo carrito para usuario: ${userId}`);
 
-    const items = await pool.query(
+    const carrito = await pool.query(
       `SELECT c.*, p.nombre, p.precio, p.imagen, p.stock
        FROM carrito c
        JOIN productos p ON c.producto_id = p.id
-       WHERE c.cliente_id = $1`,
+       WHERE c.cliente_id = $1
+       ORDER BY c.fecha_agregado DESC`,
       [userId]
     );
 
-    console.log(`📦 Carrito obtenido: ${items.rows.length} items`);
-    respuesta.json(items.rows);
+    console.log(`📦 Carrito obtenido: ${carrito.rows.length} items`);
+    res.json(carrito.rows);
 
   } catch (error) {
     console.error("❌ Error obteniendo carrito:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
 // Eliminar producto del carrito
-router.delete("/:id", auth, async (peticion, respuesta) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
-    const itemId = peticion.params.id;
-    const userId = peticion.user.id;
+    const itemId = req.params.id;
+    const userId = req.user.id;
 
     console.log(`🗑️ Eliminando item del carrito: ${itemId} para usuario: ${userId}`);
 
@@ -126,34 +121,34 @@ router.delete("/:id", auth, async (peticion, respuesta) => {
     );
 
     if (resultado.rows.length === 0) {
-      return respuesta.status(404).json({ error: "Producto no encontrado en el carrito" });
+      return res.status(404).json({ error: "Producto no encontrado en el carrito" });
     }
 
     console.log(`✅ Item ${itemId} eliminado del carrito`);
-    respuesta.json({ mensaje: "Producto eliminado del carrito" });
+    res.json({ mensaje: "Producto eliminado del carrito" });
 
   } catch (error) {
     console.error("❌ Error eliminando del carrito:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// Actualizar talla - RUTA CORREGIDA
-router.put("/talla/:id", auth, async (peticion, respuesta) => {
+// Actualizar talla de producto en el carrito
+router.put("/talla/:id", auth, async (req, res) => {
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
 
-    const itemId = peticion.params.id;
-    const userId = peticion.user.id;
-    const { talla } = peticion.body;
+    const itemId = req.params.id;
+    const userId = req.user.id;
+    const { talla } = req.body;
 
     console.log(`👟 Cambiando talla: item=${itemId}, usuario=${userId}, nuevaTalla=${talla}`);
 
     if (!talla) {
       await client.query('ROLLBACK');
-      return respuesta.status(400).json({ error: "La talla es requerida" });
+      return res.status(400).json({ error: "La talla es requerida" });
     }
 
     // Verificar que el item existe
@@ -164,7 +159,7 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
 
     if (item.rows.length === 0) {
       await client.query('ROLLBACK');
-      return respuesta.status(404).json({ error: "Item no encontrado en el carrito" });
+      return res.status(404).json({ error: "Item no encontrado en el carrito" });
     }
 
     const itemActual = item.rows[0];
@@ -203,33 +198,33 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
       [userId]
     );
 
-    respuesta.json(carritoActualizado.rows);
+    res.json(carritoActualizado.rows);
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("❌ Error actualizando talla:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     client.release();
   }
 });
 
-// Actualizar cantidad
-router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
+// Actualizar cantidad de producto en el carrito
+router.put("/cantidad/:id", auth, async (req, res) => {
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
 
-    const itemId = peticion.params.id;
-    const userId = peticion.user.id;
-    const { cantidad } = peticion.body;
+    const itemId = req.params.id;
+    const userId = req.user.id;
+    const { cantidad } = req.body;
 
     console.log(`🔢 Cambiando cantidad: item=${itemId}, usuario=${userId}, nuevaCantidad=${cantidad}`);
 
-    if (cantidad < 1) {
+    if (!cantidad || cantidad < 1) {
       await client.query('ROLLBACK');
-      return respuesta.status(400).json({ error: "La cantidad debe ser al menos 1" });
+      return res.status(400).json({ error: "La cantidad debe ser al menos 1" });
     }
 
     // Verificar stock antes de actualizar
@@ -243,12 +238,12 @@ router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
 
     if (item.rows.length === 0) {
       await client.query('ROLLBACK');
-      return respuesta.status(404).json({ error: "Item no encontrado" });
+      return res.status(404).json({ error: "Item no encontrado" });
     }
 
     if (item.rows[0].stock < cantidad) {
       await client.query('ROLLBACK');
-      return respuesta.status(400).json({ 
+      return res.status(400).json({ 
         error: `Stock insuficiente. Stock disponible: ${item.rows[0].stock}` 
       });
     }
@@ -271,18 +266,18 @@ router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
     );
 
     console.log(`✅ Cantidad actualizada a ${cantidad}`);
-    respuesta.json(carritoActualizado.rows);
+    res.json(carritoActualizado.rows);
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("❌ Error actualizando cantidad:", error);
-    respuesta.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     client.release();
   }
 });
 
-// Pagar TODO el carrito
+// Pagar todo el carrito
 router.put("/pagar-todo", auth, async (req, res) => {
   const client = await pool.connect();
   
@@ -306,6 +301,7 @@ router.put("/pagar-todo", auth, async (req, res) => {
       return res.status(400).json({ error: "El carrito está vacío" });
     }
 
+    // Verificar stock y calcular total
     let total = 0;
     for (const item of carritoItems.rows) {
       if (item.stock < item.cantidad) {
@@ -314,16 +310,19 @@ router.put("/pagar-todo", auth, async (req, res) => {
           error: `Stock insuficiente para ${item.nombre}. Stock disponible: ${item.stock}` 
         });
       }
-      total += item.precio * item.cantidad;
+      total += parseFloat(item.precio) * item.cantidad;
     }
 
+    // Crear pedido
     const pedidoResult = await client.query(
       `INSERT INTO pedidos (cliente_id, total, estado) 
-       VALUES ($1, $2, 'pendiente') RETURNING id`,
+       VALUES ($1, $2, 'completado') RETURNING id`,
       [userId, total]
     );
+
     const pedidoId = pedidoResult.rows[0].id;
 
+    // Crear detalles del pedido y actualizar stock
     for (const item of carritoItems.rows) {
       await client.query(
         `INSERT INTO pedidos_productos (pedido_id, producto_id, cantidad, precio_unitario)
@@ -337,12 +336,17 @@ router.put("/pagar-todo", auth, async (req, res) => {
       );
     }
 
+    // Vaciar carrito
     await client.query('DELETE FROM carrito WHERE cliente_id = $1', [userId]);
 
     await client.query('COMMIT');
 
-    console.log(`✅ Pago procesado exitosamente. Total: €${total}`);
-    res.json({ mensaje: "🎉 Muchas gracias por tu compra, hasta luego 🛍️" });
+    console.log(`✅ Pago procesado exitosamente. Total: €${total.toFixed(2)}`);
+    res.json({ 
+      mensaje: "🎉 ¡Muchas gracias por tu compra!",
+      total: total,
+      pedidoId: pedidoId
+    });
 
   } catch (error) {
     await client.query('ROLLBACK');
@@ -350,6 +354,26 @@ router.put("/pagar-todo", auth, async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     client.release();
+  }
+});
+
+// Obtener cantidad total de items en el carrito
+router.get("/count", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const countResult = await pool.query(
+      'SELECT SUM(cantidad) as total_items FROM carrito WHERE cliente_id = $1',
+      [userId]
+    );
+
+    const totalItems = countResult.rows[0].total_items || 0;
+    
+    res.json({ totalItems: parseInt(totalItems) });
+
+  } catch (error) {
+    console.error("❌ Error obteniendo count del carrito:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
