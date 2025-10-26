@@ -16,7 +16,9 @@ const Puerto = process.env.Puerto || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Función para crear tablas automáticamente
+// Variable para controlar que las tablas solo se creen una vez
+let tablasCreadas = false;
+
 // Función para crear tablas automáticamente
 async function createTables() {
   let client;
@@ -93,20 +95,32 @@ async function createTables() {
     `);
     console.log('✅ Tabla pedidos_productos creada/verificada');
 
-    // Crear tabla carrito
+    // Crear tabla carrito - ACTUALIZADA CON TALLA
     await client.query(`
       CREATE TABLE IF NOT EXISTS carrito (
         id SERIAL PRIMARY KEY,
         cliente_id INT REFERENCES clientes(id) ON DELETE CASCADE,
         producto_id INT REFERENCES productos(id),
         cantidad INT NOT NULL DEFAULT 1,
-        fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(cliente_id, producto_id)
+        talla VARCHAR(10) DEFAULT '38',
+        fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla carrito creada/verificada');
+    console.log('✅ Tabla carrito creada/verificada CON TALLA');
 
-    // Insertar categorías básicas - CORREGIDO
+    // Añadir constraint única para cliente_id + producto_id + talla si no existe
+    try {
+      await client.query(`
+        ALTER TABLE carrito 
+        ADD CONSTRAINT carrito_cliente_producto_talla_unique 
+        UNIQUE (cliente_id, producto_id, talla)
+      `);
+      console.log('✅ Constraint única añadida a carrito');
+    } catch (error) {
+      console.log('ℹ️  Constraint ya existe o no se pudo añadir');
+    }
+
+    // Insertar categorías básicas
     await client.query(`
       INSERT INTO categorias (id, nombre, descripcion) VALUES
       (1, 'Zapatos Deportivos', 'Zapatos para deporte'),
@@ -119,12 +133,15 @@ async function createTables() {
     `);
     console.log('✅ Categorías insertadas/actualizadas');
 
-    // Insertar productos de ejemplo - CORREGIDO
+    // Insertar productos de ejemplo
     await client.query(`
       INSERT INTO productos (id, nombre, precio, stock, categoria_id, imagen, marca) VALUES
       (1, 'AirFlex Runner', 30.00, 41, 1, '/img/zapato5.jpg', 'Running'),
       (2, 'Urban Step', 5.00, 28, 1, '/img/zapato6.jpg', 'Casual'),
-      (3, 'Street Move', 25.00, 32, 1, '/img/zapato2.jpg', 'Urbana')
+      (3, 'Street Move', 25.00, 32, 1, '/img/zapato2.jpg', 'Urbana'),
+      (4, 'Classic Formal', 45.00, 15, 2, '/img/zapato3.jpg', 'Elegance'),
+      (5, 'Summer Sandals', 20.00, 25, 3, '/img/zapato4.jpg', 'Beach'),
+      (6, 'Winter Boots', 60.00, 12, 4, '/img/zapato1.jpg', 'Mountain')
       ON CONFLICT (id) DO UPDATE SET
         nombre = EXCLUDED.nombre,
         precio = EXCLUDED.precio,
@@ -136,7 +153,8 @@ async function createTables() {
     console.log('✅ Productos insertados/actualizados');
 
     console.log('✅ Todas las tablas creadas exitosamente');
-    client.release();
+    tablasCreadas = true;
+    
   } catch (error) {
     console.error('❌ Error creando tablas:', error.message);
   } finally {
@@ -150,12 +168,10 @@ servidor.use(express.json());
 servidor.use(cors());
 servidor.use("/img", express.static(path.join(__dirname, "public/img")));
 
-// Inicializar tablas antes de las rutas
+// Middleware para inicializar tablas si es necesario
 servidor.use(async (req, res, next) => {
-  // Solo crear tablas una vez cuando se inicia el servidor
-  if (!servidor.tablasCreadas) {
+  if (!tablasCreadas) {
     await createTables();
-    servidor.tablasCreadas = true;
   }
   next();
 });
@@ -172,6 +188,16 @@ servidor.get("/status", (req, res) => {
     database: "Tablas creadas",
     timestamp: new Date().toISOString()
   });
+});
+
+// Ruta para forzar recreación de tablas (solo desarrollo)
+servidor.post("/reset-db", async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: "No permitido en producción" });
+  }
+  tablasCreadas = false;
+  await createTables();
+  res.json({ message: "Base de datos reiniciada" });
 });
 
 // 404

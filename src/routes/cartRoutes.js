@@ -4,6 +4,12 @@ import { pool } from "../../db.js";
 
 const router = express.Router();
 
+// Middleware de debug para ver las rutas que se llaman
+router.use((req, res, next) => {
+  console.log(`🛒 Carrito: ${req.method} ${req.originalUrl} - User: ${req.user?.id || 'No auth'}`);
+  next();
+});
+
 // Añadir producto al carrito (CON TALLA)
 router.post("/:id", auth, async (peticion, respuesta) => {
   const client = await pool.connect();
@@ -14,6 +20,8 @@ router.post("/:id", auth, async (peticion, respuesta) => {
     const productoId = peticion.params.id;
     const userId = peticion.user.id;
     const { cantidad = 1, talla = "38" } = peticion.body;
+
+    console.log(`➕ Añadiendo al carrito: producto=${productoId}, usuario=${userId}, cantidad=${cantidad}, talla=${talla}`);
 
     // Verificar que el producto existe y tiene stock
     const producto = await client.query(
@@ -46,6 +54,7 @@ router.post("/:id", auth, async (peticion, respuesta) => {
         'UPDATE carrito SET cantidad = cantidad + $1 WHERE cliente_id = $2 AND producto_id = $3 AND talla = $4',
         [cantidad, userId, productoId, talla]
       );
+      console.log(`📈 Cantidad actualizada para producto ${productoId}`);
     } else {
       // Insertar nuevo item en el carrito CON TALLA
       await client.query(
@@ -53,6 +62,7 @@ router.post("/:id", auth, async (peticion, respuesta) => {
          VALUES ($1, $2, $3, $4)`,
         [userId, productoId, cantidad, talla]
       );
+      console.log(`🆕 Nuevo item añadido al carrito: producto ${productoId}, talla ${talla}`);
     }
 
     await client.query('COMMIT');
@@ -66,6 +76,7 @@ router.post("/:id", auth, async (peticion, respuesta) => {
       [userId]
     );
 
+    console.log(`✅ Carrito actualizado: ${carritoActualizado.rows.length} items`);
     respuesta.json(carritoActualizado.rows);
 
   } catch (error) {
@@ -82,6 +93,8 @@ router.get("/", auth, async (peticion, respuesta) => {
   try {
     const userId = peticion.user.id;
 
+    console.log(`👀 Obteniendo carrito para usuario: ${userId}`);
+
     const items = await pool.query(
       `SELECT c.*, p.nombre, p.precio, p.imagen, p.stock
        FROM carrito c
@@ -90,6 +103,7 @@ router.get("/", auth, async (peticion, respuesta) => {
       [userId]
     );
 
+    console.log(`📦 Carrito obtenido: ${items.rows.length} items`);
     respuesta.json(items.rows);
 
   } catch (error) {
@@ -104,6 +118,8 @@ router.delete("/:id", auth, async (peticion, respuesta) => {
     const itemId = peticion.params.id;
     const userId = peticion.user.id;
 
+    console.log(`🗑️ Eliminando item del carrito: ${itemId} para usuario: ${userId}`);
+
     const resultado = await pool.query(
       'DELETE FROM carrito WHERE id = $1 AND cliente_id = $2 RETURNING *',
       [itemId, userId]
@@ -113,6 +129,7 @@ router.delete("/:id", auth, async (peticion, respuesta) => {
       return respuesta.status(404).json({ error: "Producto no encontrado en el carrito" });
     }
 
+    console.log(`✅ Item ${itemId} eliminado del carrito`);
     respuesta.json({ mensaje: "Producto eliminado del carrito" });
 
   } catch (error) {
@@ -121,7 +138,7 @@ router.delete("/:id", auth, async (peticion, respuesta) => {
   }
 });
 
-// Actualizar talla
+// Actualizar talla - RUTA CORREGIDA
 router.put("/talla/:id", auth, async (peticion, respuesta) => {
   const client = await pool.connect();
   
@@ -131,6 +148,8 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
     const itemId = peticion.params.id;
     const userId = peticion.user.id;
     const { talla } = peticion.body;
+
+    console.log(`👟 Cambiando talla: item=${itemId}, usuario=${userId}, nuevaTalla=${talla}`);
 
     if (!talla) {
       await client.query('ROLLBACK');
@@ -148,11 +167,30 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
       return respuesta.status(404).json({ error: "Item no encontrado en el carrito" });
     }
 
-    // Actualizar talla
-    await client.query(
-      'UPDATE carrito SET talla = $1 WHERE id = $2 AND cliente_id = $3',
-      [talla, itemId, userId]
+    const itemActual = item.rows[0];
+    
+    // Verificar si ya existe un item con el mismo producto y nueva talla
+    const itemExistente = await client.query(
+      'SELECT * FROM carrito WHERE cliente_id = $1 AND producto_id = $2 AND talla = $3 AND id != $4',
+      [userId, itemActual.producto_id, talla, itemId]
     );
+
+    if (itemExistente.rows.length > 0) {
+      // Si ya existe, combinar cantidades y eliminar el actual
+      await client.query(
+        'UPDATE carrito SET cantidad = cantidad + $1 WHERE id = $2',
+        [itemActual.cantidad, itemExistente.rows[0].id]
+      );
+      await client.query('DELETE FROM carrito WHERE id = $1', [itemId]);
+      console.log(`🔄 Item combinado con existente, talla cambiada a ${talla}`);
+    } else {
+      // Si no existe, actualizar la talla
+      await client.query(
+        'UPDATE carrito SET talla = $1 WHERE id = $2 AND cliente_id = $3',
+        [talla, itemId, userId]
+      );
+      console.log(`✅ Talla actualizada a ${talla}`);
+    }
 
     await client.query('COMMIT');
 
@@ -186,6 +224,8 @@ router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
     const itemId = peticion.params.id;
     const userId = peticion.user.id;
     const { cantidad } = peticion.body;
+
+    console.log(`🔢 Cambiando cantidad: item=${itemId}, usuario=${userId}, nuevaCantidad=${cantidad}`);
 
     if (cantidad < 1) {
       await client.query('ROLLBACK');
@@ -230,6 +270,7 @@ router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
       [userId]
     );
 
+    console.log(`✅ Cantidad actualizada a ${cantidad}`);
     respuesta.json(carritoActualizado.rows);
 
   } catch (error) {
@@ -249,6 +290,8 @@ router.put("/pagar-todo", auth, async (req, res) => {
     await client.query('BEGIN');
 
     const userId = req.user.id;
+
+    console.log(`💳 Procesando pago para usuario: ${userId}`);
 
     const carritoItems = await client.query(
       `SELECT c.*, p.nombre, p.precio, p.stock
@@ -298,6 +341,7 @@ router.put("/pagar-todo", auth, async (req, res) => {
 
     await client.query('COMMIT');
 
+    console.log(`✅ Pago procesado exitosamente. Total: €${total}`);
     res.json({ mensaje: "🎉 Muchas gracias por tu compra, hasta luego 🛍️" });
 
   } catch (error) {
