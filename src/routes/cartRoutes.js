@@ -17,9 +17,9 @@ router.post("/:id", auth, async (peticion, respuesta) => {
 
     const productoId = peticion.params.id;
     const userId = peticion.user.id;
-    const { cantidad = 1, talla = "M" } = peticion.body; // ✅ Añadido talla
+    const { cantidad = 1, talla = "38" } = peticion.body;
 
-    // Verificar que el producto existe y tiene stock
+    // Verificar producto
     const producto = await client.query(
       'SELECT id, nombre, precio, stock, imagen FROM productos WHERE id = $1 AND es_activo = true',
       [productoId]
@@ -32,26 +32,23 @@ router.post("/:id", auth, async (peticion, respuesta) => {
 
     const productoData = producto.rows[0];
 
-    // Verificar stock disponible
     if (productoData.stock < cantidad) {
       await client.query('ROLLBACK');
       return respuesta.status(400).json({ error: "Stock insuficiente" });
     }
 
-    // Verificar si el producto ya está en el carrito CON LA MISMA TALLA
+    // Verificar si ya existe con misma talla
     const itemExistente = await client.query(
       'SELECT * FROM carrito WHERE cliente_id = $1 AND producto_id = $2 AND talla = $3',
       [userId, productoId, talla]
     );
 
     if (itemExistente.rows.length > 0) {
-      // Actualizar cantidad si ya existe con misma talla
       await client.query(
         'UPDATE carrito SET cantidad = cantidad + $1 WHERE cliente_id = $2 AND producto_id = $3 AND talla = $4',
         [cantidad, userId, productoId, talla]
       );
     } else {
-      // Insertar nuevo item en el carrito CON TALLA
       await client.query(
         `INSERT INTO carrito (cliente_id, producto_id, cantidad, talla) 
          VALUES ($1, $2, $3, $4)`,
@@ -81,7 +78,7 @@ router.post("/:id", auth, async (peticion, respuesta) => {
   }
 });
 
-// Ver carrito (ACTUALIZADO)
+// Ver carrito
 router.get("/", auth, async (peticion, respuesta) => {
   try {
     const userId = peticion.user.id;
@@ -149,7 +146,7 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
 
     if (item.rows.length === 0) {
       await client.query('ROLLBACK');
-      return respuesta.status(404).json({ error: "Item no encontrado" });
+      return respuesta.status(404).json({ error: "Item no encontrado en el carrito" });
     }
 
     // Actualizar talla
@@ -180,7 +177,7 @@ router.put("/talla/:id", auth, async (peticion, respuesta) => {
   }
 });
 
-// Actualizar cantidad (CORREGIDO)
+// Actualizar cantidad
 router.put("/cantidad/:id", auth, async (peticion, respuesta) => {
   const client = await pool.connect();
   
