@@ -20,10 +20,10 @@ const __dirname = path.dirname(__filename);
 async function verificarConexionBD() {
   try {
     await pool.query('SELECT NOW()');
-    console.log('✅ Conectado a PostgreSQL');
+    console.log('Conectado a PostgreSQL');
     return true;
   } catch (error) {
-    console.error('❌ Error conectando a PostgreSQL:', error.message);
+    console.error(' Error conectando a PostgreSQL:', error.message);
     return false;
   }
 }
@@ -32,13 +32,13 @@ async function verificarConexionBD() {
 servidor.use(express.json());
 servidor.use(cors());
 
-// Servir archivos estáticos CORREGIDO
+// Servir archivos estáticos
 servidor.use(express.static(path.join(__dirname, 'public')));
 servidor.use("/img", express.static(path.join(__dirname, "public", "img")));
 
 // Ruta para verificar que las imágenes se sirven
-servidor.get("/test-images", (req, res) => {
-  res.json({
+servidor.get("/test-images", (peticion, respuesta) => {
+  respuesta.json({
     message: "Test de imágenes",
     images: [
       "/img/zapato1.jpg",
@@ -57,16 +57,16 @@ servidor.use("/productos", productsRoutes);
 servidor.use("/carrito", cartRoutes);
 
 // Ruta de salud
-servidor.get("/health", async (req, res) => {
+servidor.get("/health", async (peticion, respuesta) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ 
+    respuesta.json({ 
       status: "OK", 
       database: "Connected",
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ 
+    respuesta.status(500).json({ 
       status: "Error", 
       database: "Disconnected",
       error: error.message 
@@ -75,20 +75,20 @@ servidor.get("/health", async (req, res) => {
 });
 
 // Ruta raíz
-servidor.get("/", (req, res) => {
-  res.json({ 
+servidor.get("/", (peticion, respuesta) => {
+  respuesta.json({ 
     message: "API de Tienda funcionando",
     version: "1.0.0"
   });
 });
 
 // 404
-servidor.use((req, res) => {
-  res.status(404).json({ error: "Ruta no encontrada" });
+servidor.use((peticion, respuesta) => {
+  respuesta.status(404).json({ error: "Ruta no encontrada" });
 });
 
 // Iniciar servidor
 servidor.listen(Puerto, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${Puerto}`);
-  console.log(`📁 Serviendo archivos desde: ${path.join(__dirname, 'public')}`);
+  console.log(` Servidor corriendo en http://localhost:${Puerto}`);
+  console.log(` Serviendo archivos desde: ${path.join(__dirname, 'public')}`);
 });

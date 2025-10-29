@@ -9,8 +9,8 @@ const router = express.Router();
 const SECRET = process.env.SECRET || "mi_secreto_super_seguro";
 
 // Middleware para logging
-router.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path}`, req.body);
+router.use((peticion, respuesta, next) => {
+  console.log(`${peticion.method} ${peticion.path}`, peticion.body);
   next();
 });
 
@@ -20,7 +20,7 @@ router.post("/register", async (peticion, respuesta) => {
   try {
     let { nombre, password, email, telefono, direccion } = peticion.body;
 
-    console.log('🔄 Intentando registrar usuario:', { nombre, email });
+    console.log('Intentando registrar usuario:', { nombre, email });
 
     // Validaciones básicas
     if (!nombre || !password || !email) {
@@ -68,7 +68,7 @@ router.post("/register", async (peticion, respuesta) => {
       [nombre, email, telefono, direccion, hash]
     );
 
-    console.log('✅ Usuario registrado exitosamente:', nuevoUsuario.rows[0].email);
+    console.log('Usuario registrado exitosamente:', nuevoUsuario.rows[0].email);
     
     respuesta.status(201).json({ 
       mensaje: "Usuario registrado correctamente",
@@ -76,7 +76,7 @@ router.post("/register", async (peticion, respuesta) => {
     });
 
   } catch (error) {
-    console.error("❌ Error en registro:", error);
+    console.error("Error en registro:", error);
     
     // Respuesta de error más detallada
     respuesta.status(500).json({ 
@@ -91,13 +91,13 @@ router.post("/register", async (peticion, respuesta) => {
   }
 });
 
-// Login (también actualizado con mejor manejo de errores)
+// Login
 router.post("/login", async (peticion, respuesta) => {
   let client;
   try {
     const { email, password } = peticion.body;
 
-    console.log('🔄 Intentando login:', email);
+    console.log('Intentando login:', email);
 
     if (!email || !password) {
       return respuesta.status(400).json({ 
@@ -128,7 +128,7 @@ router.post("/login", async (peticion, respuesta) => {
       });
     }
 
-    console.log('✅ Login exitoso:', usuarioData.email);
+    console.log('Login exitoso:', usuarioData.email);
 
     const token = jwt.sign(
       { 
@@ -153,7 +153,7 @@ router.post("/login", async (peticion, respuesta) => {
     });
 
   } catch (error) {
-    console.error("❌ Error en login:", error);
+    console.error("Error en login:", error);
     
     respuesta.status(500).json({ 
       error: "Error interno del servidor",

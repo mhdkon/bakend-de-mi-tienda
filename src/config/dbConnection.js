@@ -1,11 +1,11 @@
-// ======== IMPORTACIONES ========
+
 import pkg from "pg";
 import dotenv from "dotenv";
 
 dotenv.config();
 const { Pool } = pkg;
 
-// ======== CONEXIÓN A POSTGRESQL ========
+
 const isRender = process.env.DB_HOST.includes("render.com");
 
 export const pool = new Pool({
@@ -17,28 +17,28 @@ export const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  ssl: isRender ? { rejectUnauthorized: false } : false, // 🔹 SSL solo para Render
+  ssl: isRender ? { rejectUnauthorized: false } : false, 
 });
 
-// ======== VERIFICAR CONEXIÓN ========
+
 export const verificarConexion = async () => {
   try {
     const client = await pool.connect();
-    console.log("✅ Conexión a PostgreSQL exitosa");
+    console.log("Conexión a PostgreSQL exitosa");
 
     // Probar consulta simple
     const result = await client.query("SELECT NOW()");
-    console.log("✅ Hora de la base de datos:", result.rows[0].now);
+    console.log(" Hora de la base de datos:", result.rows[0].now);
 
     client.release();
     return true;
   } catch (error) {
-    console.error("❌ Error conectando a PostgreSQL:", error.message);
+    console.error(" Error conectando a PostgreSQL:", error.message);
     return false;
   }
 };
 
-// Verificar conexión al importar
+
 verificarConexion();
 
 export default {
